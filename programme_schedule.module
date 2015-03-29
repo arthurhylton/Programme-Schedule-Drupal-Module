@@ -1,0 +1,126 @@
+<?php
+/**
+ * @file
+ * A block module that displays the stylzfm programme schedule.
+ */
+
+
+/**
+ * Implements hook_help().
+ * 
+ * Displays help and module information. 
+ *
+ * @param path
+ *   Which path of the site we're using to display help
+ * @param arg
+ *   Array that holds the current path as returned from arg() function
+ */
+function programme_schedule_help($path, $arg) {
+	switch ($path) {
+		case "admin/help#programme_schedule":
+			return '<p>' . t("Displays stylzfm radio programme days and times") . '</p>';
+			break;
+	}
+}
+
+/**
+ * Implements hook_block_info().
+ */
+function programme_schedule_block_info() {
+  $blocks['programme_schedule'] = array(
+    // The name that will appear in the block list.
+    'info' => t('Programme schedule'),
+    // Default setting.
+    'cache' => DRUPAL_NO_CACHE,
+  );
+  return $blocks;
+}
+
+function programme_schedule_contents() {
+	drupal_add_js(drupal_get_path('module', 'programme_schedule') . '/custom.js');
+		
+	$query = new EntityFieldQuery();
+	$query->entityCondition('entity_type', 'node')
+		->entityCondition('bundle', 'programme')
+		->propertyCondition('status', 1)
+		->fieldOrderBy('field_time_start', 'value', 'ASC')
+		->addMetaData('account', user_load(1)); // Run the query as user 1.
+	$result = $query->execute();
+	if (isset($result['node'])) {
+		$programme_items_nids = array_keys($result['node']);
+		$programme_items = entity_load('node', $programme_items_nids);
+	}
+	return $programme_items;
+}
+
+
+function stylzfm_custom_layout($node_array) {
+	$str = "<table id='programme_schedule'>";
+	$days = array("Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday");
+	foreach ($days as $day) {
+		$formatted = implode(' ',str_split(substr($day,0,3))); 
+		$str .= "<tr><td class='schedule_day'>{$formatted}</td>";
+		foreach ($node_array as $node) {
+			for($i = 0;$i < count($node->field_day['und']);$i++) {
+				if($node->field_day['und'][$i]['value'] == $day) {
+					
+					$today_string = date('l'); //Tuesday, Wednesday, ...
+					$extras = "";
+					
+						$now_time_string = date('H:i:s');
+						$now_time = DateTime::createFromFormat('H:i:s', $now_time_string);
+						
+						$start_hour_min = explode(":", $node->field_time_start['und'][$i]['value']);
+						$end_hour_min = explode(":", $node->field_time_end['und'][$i]['value']);
+						
+						$time_start_string = $start_hour_min[0] . ':' . $start_hour_min[1] . ':' . '00';
+						$time_start = DateTime::createFromFormat('H:i:s', $time_start_string);
+						
+						$time_end_string = $end_hour_min[0] . ':' . $end_hour_min[1] . ':' . '00';
+						$time_end = DateTime::createFromFormat('H:i:s', $time_end_string);
+						
+						//increase time by 1 second as a step in stopping the 12:00 midnight (and other end times) issue
+						$time_end_modified = $time_end->modify('+1 second');
+						
+						if ($node->field_day['und'][$i]['value'] == $today_string && ($time_start <= $now_time && $now_time <= $time_end_modified)) {
+							$extras .= "<a href='http://radio.securenetsystems.net/radio_player_large.cfm?stationCallSign=STYLZFM' target='_blank'><span id='flashingtext'>Listen Now!</span></a><br />";
+						}
+						if(count($node->body)>0)
+						{
+							$tmpBody = $node->body['und'][0]['value'];
+							$tooltip = "<p class='tooltip1'><a>{$node->title}<span>{$tmpBody}</span></a></p>";
+						}else
+						{
+							$tooltip = "<a>{$node->title}</a>";
+						}
+					$str .= "<td class='schedule_block'>{$extras}{$tooltip}<br />{$node->field_personality['und'][0]['value']}<br />{$time_start->format('g:i a')} - {$time_end->format('g:i a')}</td>";
+				}
+			}
+			
+			//todo: think abt removing the ones already used ^ from the list so less iterations will occur later
+			//$str .= "<div>{$node->title}</div><div>{$node->field_day['und'][0]['value']}</div>";
+		//debug($node);
+		}
+		$str .= "</tr>";
+	}
+	$str .= "</table>";
+	return $str;
+}
+
+
+/**
+ * Implements hook_block_view().
+ *
+ * Prepares the contents of the block.
+ */
+function programme_schedule_block_view($delta = '') {
+  switch ($delta) {
+    case 'programme_schedule':
+      $block['subject'] = t('Program schedule');
+			// Use our custom function to retrieve data.
+			$result = programme_schedule_contents();
+			
+			$block['content'] = stylzfm_custom_layout($result);
+    return $block;
+  }
+}

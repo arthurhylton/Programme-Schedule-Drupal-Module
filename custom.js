@@ -1,0 +1,1 @@
+function flashtext(ele,col) {	var tmpColCheck = document.getElementById( ele ).style.color;	if (tmpColCheck === 'red') {		document.getElementById( ele ).style.color = col;	} else {		document.getElementById( ele ).style.color = 'red';	}} 		setInterval(function() {			flashtext('flashingtext','orange');	}, 500 ); //set an interval timer up to repeat the function</script>
