@@ -87,8 +87,8 @@ function stylzfm_custom_layout($node_array) {
 						}
 						if(count($node->body)>0)
 						{
-							$tmpBody = $node->body['und'][0]['value'];
-							$tooltip = "<p class='tooltip1'><a>{$node->title}<span>{$tmpBody}</span></a></p>";
+							$tmpSummary = strip_tags($node->body['und'][0]['summary']);
+							$tooltip = "<p class='tooltip1'><a>{$node->title}<span>{$tmpSummary}</span></a></p>";
 						}else
 						{
 							$tooltip = "<a>{$node->title}</a>";
